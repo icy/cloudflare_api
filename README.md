@@ -50,3 +50,13 @@ $ ./cloudflare_api.sh _cf_zone_dns_update_entry \
     --proxied true
 
 ````
+
+## Tips
+
+1. Use `--debug` option to see how `curl` sends request(s) to Cloudflare.
+2. Sourcing and noop would help to set up some variables like `CF_ZONE_ID`.
+   For example,
+
+        source cloudflare_api.sh : "$@"
+        # Now CF_ZONE_ID is exported.
+        # See details in `_cf_check` and `__cf_detect_arg`
