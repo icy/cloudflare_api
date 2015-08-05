@@ -49,12 +49,23 @@ $ ./cloudflare_api.sh _cf_zone_dns_update_entry \
     --name "foo.example.net" \
     --proxied true
 
+# Purging cache
+$ ./cloudflare_api.sh _cf_cache_purge_all \
+    --zone_id $CF_ZONE_ID
+
+# Purge some URIs
+$ ./cloudflare_api.sh _cf_purge_uri \
+    --zone_id $CF_ZONE_ID \
+    http://example.net/foo \
+    http://example.net/bar \
+    ...
 ````
 
 ## Tips
 
 1. Use `--debug` option to see how `curl` sends request(s) to Cloudflare.
-2. Sourcing and noop would help to set up some variables like `CF_ZONE_ID`.
+1. If `--zone_id` option is not specified, the `CF_ZONE_ID` environment is used.
+1. Sourcing and noop would help to set up some variables like `CF_ZONE_ID`.
    For example,
 
         source cloudflare_api.sh : "$@"
