@@ -141,6 +141,9 @@ _cf_zone_get_entry_id() {
  [[ "${PIPESTATUS[0]}" -eq 0 ]]
 }
 
+# --zone_id  ID         : The identity of a zone
+# --name     DNS_NAME   : The dns entry
+# --per_page NUM        : Number of results per request
 _cf_zone_dns_get_entries() {
   local _zone_id="$(__cf_get_arg zone_id)"
   local _name="$(__cf_get_arg name)"
@@ -216,6 +219,10 @@ _cf_zone_dns_get_entries() {
     '
 }
 
+# --zone_id  ID           : The identify of the zone
+# --name     DNS_NAME     : The entry to create
+# --type     A|CNAME      : Record type (Must be: A or CNAME)
+# --value    IP|DNS_NAME  : The value of dns record
 _cf_zone_dns_create_entry() {
   local _zone_id="$(__cf_get_arg zone_id)"
   local _name="$(__cf_get_arg name)"
