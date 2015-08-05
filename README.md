@@ -63,7 +63,7 @@ $ ./cloudflare_api.sh _cf_purge_uri \
 
 ## Tips
 
-1. Use `--debug` option to see how `curl` sends request(s) to Cloudflare.
+1. Use `--debug true` option to see how `curl` sends request(s) to Cloudflare.
 1. If `--zone_id` option is not specified, the `CF_ZONE_ID` environment is used.
 1. Sourcing and noop would help to set up some variables like `CF_ZONE_ID`.
    For example,
