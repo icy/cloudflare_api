@@ -318,6 +318,7 @@ _cf_zone_dns_update_entry() {
     --data "{\"type\":\"$_entry_type\",\"name\":\"$_name\",\"content\":\"$_entry_content\",\"ttl\":$_entry_ttl,\"proxied\":$_entry_proxied}"
 }
 
+# FIXME: doesn't support any optional optin (e.g., --debug)
 _cf_cache_purge_all() {
   local _zone_id="$(__cf_get_arg zone_id)"
 
@@ -329,6 +330,7 @@ _cf_cache_purge_all() {
 }
 
 # $0 --zone_id foobar file1 file2 file3
+# FIXME: doesn't support any optional optin (e.g., --debug)
 _cf_cache_purge_uri() {
   local _zone_id="$(__cf_get_arg zone_id)"
 
