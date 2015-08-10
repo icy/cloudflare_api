@@ -330,7 +330,7 @@ _cf_cache_purge_all() {
 
 # $0 --zone_id foobar file1 file2 file3
 _cf_cache_purge_uri() {
-  local _zone_id="$(__cf_get_arg zone_id)"; shift; shift
+  local _zone_id="$(__cf_get_arg zone_id)"
 
   local _files=""
 
@@ -348,6 +348,8 @@ _cf_cache_purge_uri() {
     --data "{\"files\":[$_files]}"
 }
 
+# FIXME: perl/json check
+# FIXME: curl check
 _cf_check() {
   local _f_key="${CF_KEY_FILE:-etc/cloudflare.$CF_EMAIL.key}"
 
