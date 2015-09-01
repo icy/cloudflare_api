@@ -1,3 +1,12 @@
+## Table of contents
+
+1. [Description](#description)
+1. [Author](#author)
+1. [License](#license)
+1. [Examples](#examples)
+1. [Tips](#tips)
+1. [FIXME](#fixme)
+
 ## Description
 
 A minimalist `Bash` binding of Cloudflare API https://api.cloudflare.com/.
@@ -71,3 +80,8 @@ $ ./cloudflare_api.sh _cf_purge_uri \
         source cloudflare_api.sh : "$@"
         # Now CF_ZONE_ID is exported.
         # See details in `_cf_check` and `__cf_detect_arg`
+
+## FIXME
+
+1. Ability to specify `--entry_id` when updating / listing
+1. Not work with entry that has multiple DNS properties (`A`, `MX`, ...)
