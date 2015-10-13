@@ -73,6 +73,14 @@ __ensure_boolean() {
   esac
 }
 
+# Cloudflare strictly requires "on" or "off"
+__ensure_on_off() {
+  case "${1,,}" in
+  "on"|"1"|"true") echo "on";;
+                *) echo "off";;
+  esac
+}
+
 __my_json_pp() {
   perl -e '
     use JSON;
@@ -96,7 +104,7 @@ __cf_request() {
   [[ "${CF_DEBUG:-}" == ""true ]] \
   && echo >&2 ":: $FUNCNAME: $_uri, data -> $@"
 
-  curl -sSLo- --connect-timeout 4 \
+  curl -sSLo- --connect-timeout "${CURL_TIMEOUT:-4}" \
     "https://api.cloudflare.com/client/v4$_uri" \
     -H "X-Auth-Email: $CF_EMAIL" \
     -H "X-Auth-Key: $CF_KEY" \
@@ -134,6 +142,25 @@ _cf_zone_get_entry() {
   echo "$_response"
 }
 
+# PATCH /zones/:zone_identifier/settings/development_mode
+_cf_zone_settings_update() {
+  local _zone_id="$(__cf_get_arg zone_id)"
+  local _name="$(__cf_get_arg name)"
+  local _devel="$(__cf_get_arg devel)"
+  local _response=
+
+  if __cf_has_arg "devel"; then
+    _devel="$(__ensure_on_off $_devel)"
+
+    __cf_request \
+      "/zones/$_zone_id/settings/development_mode" \
+      -X PATCH \
+      --data "{\"value\":\"$_devel\"}"
+  else
+    __cf_error "$FUNCNAME: Feature not yet implemented. Your input: $@"
+  fi
+}
+
 _cf_zone_get_entry_id() {
  _cf_zone_get_entry "$@" \
  | CF_ENTRY='{"result"}[0]->{"id"}' __my_json_pp
@@ -163,7 +190,7 @@ _cf_zone_dns_get_entries() {
     echo "$_response" \
     | CF_ENTRY='{"result_info"}->{"total_pages"}' __my_json_pp)"
 
-  echo >&2 ":: $FUNCNAME: total page => $_total_page"
+  # echo >&2 ":: $FUNCNAME: total page => $_total_page"
   if [[ -z "$_total_page" ]]; then
     echo "$_response"
     return 1
@@ -235,12 +262,48 @@ _cf_zone_dns_create_entry() {
 }
 
 # This is to make sure there is only ONE match
+# FIXME: support --entry_id filter
 _cf_zone_dns_get_entry() {
   local _zone_id="$(__cf_get_arg zone_id)"
   local _name="$(__cf_get_arg name)"
   local _total=
+  local _type="$(__cf_get_arg type)"
 
   local _response="$(__cf_request "/zones/$_zone_id/dns_records?name=$_name&match=all")"
+
+  if __cf_has_arg type; then
+    _response="$(
+      echo "$_response" \
+      | CF_TYPE="$_type" \
+        perl -e '
+          use JSON;
+          my $stream = do { local $/; <STDIN> };
+          my $json = decode_json($stream);
+          my $items = $json->{"result"};
+          my %ret = {
+            "result" => [],
+            "result_info" => {"total_count" => 0 }
+            };
+
+          foreach(keys @$items) {
+            my $item = @$items[$_];
+            if ($item->{"type"} eq $ENV{"CF_TYPE"}) {
+              push(@{$ret->{"result"}}, $item);
+            }
+          };
+
+          $ret->{"result_info"}->{"total_count"} = scalar(@{$ret->{"result"}});
+          $ret->{"success"} => true;
+
+          print encode_json($ret);
+        '
+    )"
+
+    if [[ $? -ge 1 ]]; then
+      __cf_error "$FUNCNAME: Error happened when filtering items for type = '$_type'."
+      return 1
+    fi
+  fi
 
   _total="$( \
       echo "$_response" \
@@ -318,7 +381,6 @@ _cf_zone_dns_update_entry() {
     --data "{\"type\":\"$_entry_type\",\"name\":\"$_name\",\"content\":\"$_entry_content\",\"ttl\":$_entry_ttl,\"proxied\":$_entry_proxied}"
 }
 
-# FIXME: doesn't support any optional optin (e.g., --debug)
 _cf_cache_purge_all() {
   local _zone_id="$(__cf_get_arg zone_id)"
 
@@ -330,7 +392,6 @@ _cf_cache_purge_all() {
 }
 
 # $0 --zone_id foobar file1 file2 file3
-# FIXME: doesn't support any optional optin (e.g., --debug)
 _cf_cache_purge_uri() {
   local _zone_id="$(__cf_get_arg zone_id)"
 
@@ -350,8 +411,6 @@ _cf_cache_purge_uri() {
     --data "{\"files\":[$_files]}"
 }
 
-# FIXME: perl/json check
-# FIXME: curl check
 _cf_check() {
   local _f_key="${CF_KEY_FILE:-etc/cloudflare.$CF_EMAIL.key}"
 
@@ -374,7 +433,7 @@ _cf_zone_dns_get_simple_list() {
       printf("# Non-Proxied entries\n");
       foreach ( keys @{$json->{"result"}} ) {
         my $entry = $json->{"result"}[$_];
-        if (($entry->{"type"} eq "A" or $entry->{"type"} eq "CNAME") && (! $entry->{"proxied"})) {
+        if (! $entry->{"proxied"}) {
           printf("%40s %5s %s\n", $entry->{"name"}, $entry->{"type"}, $entry->{"content"});
         }
       }
@@ -382,13 +441,118 @@ _cf_zone_dns_get_simple_list() {
       printf("# Proxied entries\n");
       foreach ( keys @{$json->{"result"}} ) {
         my $entry = $json->{"result"}[$_];
-        if (($entry->{"type"} eq "A" or $entry->{"type"} eq "CNAME") && ($entry->{"proxied"})) {
+        if ($entry->{"proxied"}) {
           printf("%40s %5s %s\n", $entry->{"name"}, $entry->{"type"}, $entry->{"content"});
         }
       }
 
       exit($ret);
     '
+}
+
+_cf_zone_custom_pages_get() {
+  local _zone_id="$(__cf_get_arg zone_id)"
+  local _name="$(__cf_get_arg name)"
+  local _devel="$(__cf_get_arg devel)"
+  local _response=
+
+  if __cf_has_arg "devel"; then
+    _devel="$(__ensure_on_off $_devel)"
+
+    __cf_request \
+      "/zones/$_zone_id/settings/development_mode" \
+      -X PATCH \
+      --data "{\"value\":\"$_devel\"}"
+  else
+    __cf_error "$FUNCNAME: Feature not yet implemented. Your input: $@"
+  fi
+}
+
+_cf_zone_custom_pages_get_entry() {
+  local _zone_id="$(__cf_get_arg zone_id)"
+  local _page_id="$(__cf_get_arg page_id)"
+  local _response=
+
+  if ! __cf_has_arg page_id; then
+    __cf_error "$FUNCNAME: --page_id must be provided. Valid values: basic_challenge, waf_challenge, country_challenge, ip_block, under_attack, 500_errors, 1000_errors, always_online"
+
+    return
+  fi
+
+  __cf_request \
+    "/zones/$_zone_id/custom_pages/$_page_id" \
+    -X GET \
+  | perl -e '
+      use JSON;
+      my $stream = do { local $/; <STDIN> };
+      my $json = decode_json($stream);
+      my $ret = $json->{"success"};
+
+      if ($json->{"result"}->{"url"}) {
+        $json->{"result"}->{"preview_url"} = sprintf("http://cloudflarepreview.com/preview-cpage?act=preview&target=%s&url=%s", $json->{"result"}->{"preview_target"}, $json->{"result"}->{"url"})
+      }
+      print encode_json($json);
+
+      exit($ret);
+    '
+}
+
+_cf_zone_custom_pages_update_entry() {
+  local _zone_id="$(__cf_get_arg zone_id)"
+  local _page_id="$(__cf_get_arg page_id)"
+  local _url="$(__cf_get_arg url)"
+  local _state="$(__cf_get_arg state)"
+
+  local _response=
+
+  if ! __cf_has_arg page_id; then
+    __cf_error "$FUNCNAME: --page_id must be provided. Valid values: basic_challenge, waf_challenge, country_challenge, ip_block, under_attack, 500_errors, 1000_errors, always_online"
+    return
+  fi
+
+  if ! __cf_has_arg url; then
+    __cf_error "$FUNCNAME: --url must be specified."
+    return
+  fi
+
+  if ! __cf_has_arg state; then
+    __cf_error "$FUNCNAME: --state must be specified. Valid values: default, customized."
+    return
+  fi
+
+  __cf_request \
+    "/zones/$_zone_id/custom_pages/$_page_id" \
+    -X PUT \
+    --data "{\"url\":\"$_url\",\"state\":\"$_state\"}"
+}
+
+_cf_zone_custom_pages_get_entries() {
+  local _zone_id="$(__cf_get_arg zone_id)"
+  local _response=
+
+  __cf_request \
+    "/zones/$_zone_id/custom_pages" \
+    -X GET
+}
+
+_cf_zone_custom_pages_simple_list() {
+  _cf_zone_custom_pages_get_entries "$@" \
+  | perl -e '
+      use JSON;
+      my $stream = do { local $/; <STDIN> };
+      my $json = decode_json($stream);
+      my $ret = $json->{"success"};
+
+      foreach ( keys @{$json->{"result"}} ) {
+        my $entry = $json->{"result"}[$_];
+        my $desc = $entry->{"description"};
+        $desc =~ s/ +/_/g;
+        printf("%s %s url=%s %s\n", $entry->{"id"}, $entry->{"state"}, $entry->{"url"}, $desc);
+      }
+
+      exit($ret);
+    ' \
+  | column -t
 }
 
 #######################################################################
