@@ -23,8 +23,12 @@ The work is released under a MIT license.
 ## Examples
 
 ````
+# Without Bearer token, you need to set up two variables
 $ export CF_KEY_FILE=./my_api_key.private
 $ export CF_EMAIL=john@example.net
+
+# Alternatively, you can use CF_BEARER_TOKEN instead of those two variables
+$ export CF_BEARER_TOKEN=....
 
 # List all of my domains
 $ ./cloudflare_api.sh _cf_zone_get_entries | json_pp
