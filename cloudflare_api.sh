@@ -106,11 +106,11 @@ __cf_request() {
 
   {
     if [[ -n "${CF_BEARER_TOKEN:-}" ]]; then
-    curl -sSLo- --connect-timeout "${CURL_TIMEOUT:-4}" \
-      "https://api.cloudflare.com/client/v4$_uri" \
-      -H "Authorization: Bearer $CF_BEARER_TOKEN" \
-      -H "Content-Type: application/json" \
-      "$@"
+      curl -sSLo- --connect-timeout "${CURL_TIMEOUT:-4}" \
+        "https://api.cloudflare.com/client/v4$_uri" \
+        -H "Authorization: Bearer $CF_BEARER_TOKEN" \
+        -H "Content-Type: application/json" \
+        "$@"
     else
       curl -sSLo- --connect-timeout "${CURL_TIMEOUT:-4}" \
         "https://api.cloudflare.com/client/v4$_uri" \
