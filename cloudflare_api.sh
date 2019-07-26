@@ -123,7 +123,7 @@ __cf_request() {
   | __my_json_pp
 }
 
-_cf_zone_get_entries() {
+_cf_zone_get_entries() { #public: List all zones
   local _name=
 
   if __cf_has_arg name; then
@@ -260,7 +260,7 @@ _cf_zone_dns_get_entries() {
 # --name     DNS_NAME     : The entry to create
 # --type     A|CNAME      : Record type (Must be: A or CNAME)
 # --value    IP|DNS_NAME  : The value of dns record
-_cf_zone_dns_create_entry() {
+_cf_zone_dns_create_entry() { #public: Create new dns entry
   local _zone_id="$(__cf_get_arg zone_id)"
   local _name="$(__cf_get_arg name)"
   local _type="$(__cf_get_arg type)"
@@ -338,7 +338,7 @@ _cf_zone_dns_get_entry_id() {
 
 # Update A/CNAME value
 # Update proxied value
-_cf_zone_dns_update_entry() {
+_cf_zone_dns_update_entry() { #public: Update dns entry
   local _zone_id="$(__cf_get_arg zone_id)"
   local _name="$(__cf_get_arg name)"
 
@@ -430,14 +430,14 @@ _cf_check() {
   local _f_key="${CF_KEY_FILE:-etc/cloudflare.$CF_EMAIL.key}"
 
   if [[ ! -f "$_f_key" ]]; then
-    __cf_error "$FUNCNAME: File '$_f_key' not found."
+    __cf_error "$FUNCNAME: File '$_f_key' not found, or CF_BEARER_TOKEN is not set."
     return 1
   fi
 
   export CF_KEY="$(head -1 "$_f_key" 2>/dev/null)"
 }
 
-_cf_zone_dns_get_simple_list() {
+_cf_zone_dns_get_simple_list() { #public: Print a simple list of dns entries
   _cf_zone_dns_get_entries "$@" \
   | perl -e '
       use JSON;
@@ -570,9 +570,19 @@ _cf_zone_custom_pages_simple_list() {
   | column -t
 }
 
+_help() {
+  grep -Ee "^_cf_.*#public" "${BASH_SOURCE[0]:-$0}" \
+  | column -s '()' -t
+}
+
 #######################################################################
 # Main program
 ########################################################################
+
+if [[ -z "${@:-}" || "${1:-}" == "help" ]]; then
+  _help
+  exit
+fi
 
 declare -A CF_ARGS=()
 declare -A CF_ARG_FLAGS=()
@@ -581,4 +591,4 @@ unset CF_ENTRY || exit 1
 __cf_detect_arg "$@"
 _cf_check || exit 1
 
-"$@"
+"${@:-_help}"
