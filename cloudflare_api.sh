@@ -265,10 +265,13 @@ _cf_zone_dns_create_entry() { #public: Create new dns entry
   local _name="$(__cf_get_arg name)"
   local _type="$(__cf_get_arg type)"
   local _content="$(__cf_get_arg value)"
+  local _ttl="$(__cf_get_arg ttl)"
+
+  _ttl="${_ttl:-120}"
 
   __cf_request "/zones/$_zone_id/dns_records" \
     -X POST \
-    --data "{\"type\":\"$_type\",\"name\":\"$_name\",\"content\":\"$_content\",\"ttl\":1}"
+    --data "{\"type\":\"$_type\",\"name\":\"$_name\",\"content\":\"$_content\",\"ttl\":$_ttl}"
 }
 
 # This is to make sure there is only ONE match
@@ -383,8 +386,17 @@ _cf_zone_dns_update_entry() { #public: Update dns entry
     _entry_content="$(echo "$_entry_props" | CF_ENTRY='{"result"}[0]->{"content"}' __my_json_pp)"
   fi
 
-  _entry_ttl="$(echo "$_entry_props" | CF_ENTRY='{"result"}[0]->{"ttl"}' __my_json_pp)"
   _entry_proxied="$(__ensure_boolean $_entry_proxied)"
+
+  local _entry_ttl
+  if [[ "$_entry_proxied" == "true" ]]; then
+    _entry_ttl="1"
+  else
+    _entry_ttl="$(__cf_get_arg ttl)"
+    if [[ -z "$_entry_ttl" ]]; then
+      _entry_ttl="$(echo "$_entry_props" | CF_ENTRY='{"result"}[0]->{"ttl"}' __my_json_pp)"
+    fi
+  fi
 
   __cf_request "/zones/$_zone_id/dns_records/$_entry_id" \
     -X PUT \
