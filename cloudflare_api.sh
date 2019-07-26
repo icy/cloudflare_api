@@ -104,12 +104,22 @@ __cf_request() {
   [[ "${CF_DEBUG:-}" == ""true ]] \
   && echo >&2 ":: $FUNCNAME: $_uri, data -> $@"
 
-  curl -sSLo- --connect-timeout "${CURL_TIMEOUT:-4}" \
-    "https://api.cloudflare.com/client/v4$_uri" \
-    -H "X-Auth-Email: $CF_EMAIL" \
-    -H "X-Auth-Key: $CF_KEY" \
-    -H "Content-Type: application/json" \
-    "$@" \
+  {
+    if [[ -n "${CF_BEARER_TOKEN:-}" ]]; then
+    curl -sSLo- --connect-timeout "${CURL_TIMEOUT:-4}" \
+      "https://api.cloudflare.com/client/v4$_uri" \
+      -H "Authorization: Bearer $CF_BEARER_TOKEN" \
+      -H "Content-Type: application/json" \
+      "$@"
+    else
+      curl -sSLo- --connect-timeout "${CURL_TIMEOUT:-4}" \
+        "https://api.cloudflare.com/client/v4$_uri" \
+        -H "X-Auth-Email: $CF_EMAIL" \
+        -H "X-Auth-Key: $CF_KEY" \
+        -H "Content-Type: application/json" \
+        "$@"
+    fi
+  } \
   | __my_json_pp
 }
 
@@ -412,6 +422,11 @@ _cf_cache_purge_uri() {
 }
 
 _cf_check() {
+  if [[ -n "${CF_BEARER_TOKEN:-}" ]]; then
+    export CF_BEARER_TOKEN
+    return 0
+  fi
+
   local _f_key="${CF_KEY_FILE:-etc/cloudflare.$CF_EMAIL.key}"
 
   if [[ ! -f "$_f_key" ]]; then
