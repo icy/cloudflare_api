@@ -9,7 +9,8 @@
 
 ## Description
 
-A minimalist `Bash` binding of Cloudflare API https://api.cloudflare.com/.
+A `Bash` binding of Cloudflare API https://api.cloudflare.com/.
+Require `Bash4`, `perl-json`.
 
 ## Author
 

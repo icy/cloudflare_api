@@ -419,7 +419,7 @@ _cf_check() {
     return 1
   fi
 
-  export CF_KEY="$(cat "$_f_key" 2>/dev/null | head -1)"
+  export CF_KEY="$(head -1 "$_f_key" 2>/dev/null)"
 }
 
 _cf_zone_dns_get_simple_list() {
